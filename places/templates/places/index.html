@@ -1,0 +1,843 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Explore notable places in Ivano-Frankivsk on an interactive map.">
+    <title>Explore Ivano-Frankivsk</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: Inter, "Segoe UI", Arial, sans-serif;
+            color: #17231f;
+            background: #f3f6f3;
+            font-synthesis: none;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-width: 320px;
+            min-height: 100vh;
+        }
+
+        /* Header */
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 22px clamp(20px, 5vw, 64px);
+            background: #fff;
+            border-bottom: 1px solid #e4eae5;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+        }
+
+        .brand-mark {
+            display: grid;
+            width: 42px;
+            height: 42px;
+            place-items: center;
+            border-radius: 13px;
+            background: #e2f1e7;
+            color: #287348;
+            font-size: 22px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(20px, 3vw, 27px);
+            letter-spacing: -0.04em;
+        }
+
+        .subtitle {
+            margin: 4px 0 0;
+            color: #68766d;
+            font-size: 14px;
+        }
+
+        .place-count {
+            color: #536258;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        /* Main layout */
+
+        main {
+            display: grid;
+            grid-template-columns: minmax(290px, 360px) minmax(0, 1fr);
+            gap: 20px;
+            height: calc(100vh - 87px);
+            min-height: 560px;
+            padding: 20px clamp(16px, 3vw, 40px);
+        }
+
+        .places-panel,
+        .map-panel {
+            overflow: hidden;
+            border: 1px solid #e4eae5;
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 8px 26px rgb(34 58 42 / 5%);
+        }
+
+        .places-panel {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .panel-heading {
+            padding: 22px 20px 14px;
+        }
+
+        .panel-heading h2 {
+            margin: 0;
+            font-size: 17px;
+        }
+
+        .panel-heading p {
+            margin: 6px 0 0;
+            color: #758078;
+            font-size: 13px;
+        }
+
+        /* Search and filter */
+
+        .filters {
+            display: grid;
+            gap: 10px;
+            padding: 0 16px 16px;
+        }
+
+        .filters input,
+        .filters select {
+            width: 100%;
+            min-height: 42px;
+            padding: 0 12px;
+            border: 1px solid #dfe6e0;
+            border-radius: 10px;
+            background: #fff;
+            color: inherit;
+            font: inherit;
+            font-size: 14px;
+        }
+
+        .filters input:focus,
+        .filters select:focus {
+            outline: 3px solid rgb(48 132 82 / 16%);
+            border-color: #4a9b68;
+        }
+
+        /* Custom location form */
+
+        .custom-location-form {
+            margin-bottom: 6px;
+            padding: 16px;
+            background: #ffffff;
+            border: 1px solid #e4eae5;
+            border-radius: 14px;
+            box-shadow: 0 5px 18px rgb(34 58 42 / 7%);
+        }
+
+        .custom-location-form h2 {
+            margin: 0 0 8px;
+            color: #17231f;
+            font-size: 17px;
+        }
+
+        .custom-location-form .form-description {
+            margin: 0 0 16px;
+            color: #68766d;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .custom-location-form .form-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .custom-location-form .form-group {
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            min-width: 0;
+            margin-bottom: 12px;
+        }
+
+        .custom-location-form label {
+            margin-bottom: 6px;
+            color: #39483e;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .custom-location-form input,
+        .custom-location-form textarea {
+            width: 100%;
+            min-width: 0;
+            padding: 10px;
+            border: 1px solid #dfe6e0;
+            border-radius: 9px;
+            background: #fbfdfb;
+            color: #17231f;
+            font: inherit;
+            font-size: 13px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .custom-location-form input:focus,
+        .custom-location-form textarea:focus {
+            outline: none;
+            border-color: #4a9b68;
+            box-shadow: 0 0 0 3px rgb(48 132 82 / 12%);
+        }
+
+        .custom-location-form input::placeholder,
+        .custom-location-form textarea::placeholder {
+            color: #99a39b;
+        }
+
+        .custom-location-form textarea {
+            min-height: 75px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        .custom-location-form button[type="submit"] {
+            display: block;
+            width: 100%;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 9px;
+            background: #287348;
+            color: #ffffff;
+            font: inherit;
+            font-size: 14px;
+            font-weight: 650;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        .custom-location-form button[type="submit"]:hover {
+            background: #205c39;
+            transform: translateY(-1px);
+        }
+
+        .custom-location-form button[type="submit"]:active {
+            transform: translateY(0);
+        }
+
+        .custom-location-form button[type="submit"]:disabled {
+            opacity: 0.6;
+            cursor: wait;
+            transform: none;
+        }
+
+        #marker-status {
+            margin: 10px 0 0;
+            color: #536258;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        /* Location cards */
+
+        .location-list {
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            gap: 8px;
+            overflow-y: auto;
+            min-height: 0;
+            padding: 0 10px 12px;
+        }
+
+        .location-card {
+            width: 100%;
+            padding: 13px;
+            border: 1px solid transparent;
+            border-radius: 12px;
+            background: #fff;
+            color: inherit;
+            cursor: pointer;
+            text-align: left;
+            transition: background .15s ease, border-color .15s ease;
+        }
+
+        .location-card:hover,
+        .location-card:focus-visible,
+        .location-card.is-active {
+            border-color: #c9e2d0;
+            background: #f2f8f3;
+            outline: none;
+        }
+
+        .card-topline {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .location-name {
+            font-size: 14px;
+            font-weight: 650;
+            overflow-wrap: anywhere;
+        }
+
+        .category {
+            flex-shrink: 0;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: #eaf3ec;
+            color: #39744c;
+            font-size: 10px;
+            font-weight: 650;
+        }
+
+        .location-description {
+            margin: 8px 0 0;
+            color: #68766d;
+            font-size: 12px;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+        }
+
+        .empty-state {
+            padding: 20px 10px;
+            color: #758078;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        /* Map */
+
+        .map-panel {
+            position: relative;
+            min-height: 300px;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            min-height: 300px;
+        }
+
+        .map-note {
+            position: absolute;
+            z-index: 500;
+            right: 12px;
+            bottom: 12px;
+            padding: 7px 10px;
+            border-radius: 8px;
+            background: rgb(255 255 255 / 92%);
+            color: #536258;
+            font-size: 11px;
+            box-shadow: 0 1px 5px rgb(0 0 0 / 15%);
+        }
+
+        /* Map popups */
+
+        .popup-title {
+            margin: 0 0 5px;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .popup-category {
+            margin: 0 0 6px;
+            color: #39744c;
+            font-size: 11px;
+            font-weight: 650;
+        }
+
+        .popup-description {
+            margin: 0;
+            color: #536258;
+            font-size: 12px;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+        }
+
+        /* Responsive layout */
+
+        @media (max-width: 760px) {
+            .page-header {
+                padding-top: 16px;
+                padding-bottom: 16px;
+            }
+
+            .place-count {
+                display: none;
+            }
+
+            main {
+                grid-template-columns: 1fr;
+                grid-template-rows: minmax(300px, 48vh) minmax(350px, 1fr);
+                height: auto;
+                min-height: calc(100vh - 75px);
+                padding: 12px;
+            }
+
+            .map-panel {
+                grid-row: 1;
+            }
+
+            .places-panel {
+                grid-row: 2;
+                overflow: visible;
+            }
+
+            .location-list {
+                max-height: 40vh;
+                min-height: 180px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .custom-location-form {
+                padding: 14px;
+            }
+
+            .custom-location-form .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="page-header">
+        <div class="brand">
+            <div class="brand-mark" aria-hidden="true">⌖</div>
+            <div>
+                <h1>Explore Ivano-Frankivsk</h1>
+                <p class="subtitle">
+                    Discover the city's landmarks, parks, and historic places.
+                </p>
+            </div>
+        </div>
+
+        <div class="place-count" id="place-count" aria-live="polite"></div>
+    </header>
+
+    <main>
+        <aside class="places-panel" aria-label="Places">
+            <div class="panel-heading">
+                <h2>Places to explore</h2>
+                <p>Select a place to locate it on the map.</p>
+            </div>
+
+            <div class="filters">
+                <!-- Custom location form -->
+                <div class="custom-location-form">
+                    <h2>Add your own place</h2>
+
+                    <p class="form-description">
+                        Enter the coordinates and information about
+                        the place to add a marker to the map.
+                    </p>
+
+                    <form id="location-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="location-lat">
+                                    Latitude
+                                </label>
+                                <input type="number" id="location-lat" name="lat" min="-90" max="90" step="any"
+                                    placeholder="48.9226" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="location-lng">
+                                    Longitude
+                                </label>
+                                <input type="number" id="location-lng" name="lng" min="-180" max="180" step="any"
+                                    placeholder="24.7111" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="location-name">Place name</label>
+                            <input type="text" id="location-name" name="name" maxlength="150"
+                                placeholder="For example, My favorite cafe" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="location-category">Category</label>
+                            <input type="text" id="location-category" name="category" maxlength="100"
+                                placeholder="For example, Cafe">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="location-description">Description</label>
+                            <textarea id="location-description" name="description" placeholder="Describe this place..."
+                                rows="3"></textarea>
+                        </div>
+
+                        <button type="submit" id="add-location-button">
+                            + Add marker
+                        </button>
+
+                        <p id="marker-status" role="status"></p>
+                    </form>
+                </div>
+
+                <input id="search" type="search" placeholder="Search places..." aria-label="Search places">
+
+                <select id="category-filter" aria-label="Filter by category">
+                    <option value="">All categories</option>
+                </select>
+            </div>
+
+            <div class="location-list" id="location-list" aria-live="polite"></div>
+        </aside>
+
+        <section class="map-panel" aria-label="Interactive map of Ivano-Frankivsk">
+            <div id="map"></div>
+            <div class="map-note">
+                Map data &copy; OpenStreetMap contributors
+            </div>
+        </section>
+    </main>
+
+    {{ locations|json_script:"locations-data" }}
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        const locations = JSON.parse(
+            document.getElementById("locations-data").textContent
+        );
+
+        const map = L.map("map").setView([48.9226, 24.7111], 14);
+        const markerLayer = L.featureGroup().addTo(map);
+        const markers = new Map();
+
+        const list = document.getElementById("location-list");
+        const searchInput = document.getElementById("search");
+        const categoryFilter = document.getElementById("category-filter");
+        const countLabel = document.getElementById("place-count");
+
+        const locationForm = document.getElementById("location-form");
+        const markerStatus = document.getElementById("marker-status");
+        const addLocationButton = document.getElementById("add-location-button");
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution:
+                '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+
+        function popupContent(location) {
+            const content = document.createElement("div");
+
+            const name = document.createElement("p");
+            const category = document.createElement("p");
+            const description = document.createElement("p");
+
+            name.className = "popup-title";
+            category.className = "popup-category";
+            description.className = "popup-description";
+
+            name.textContent = location.name;
+            category.textContent = location.category || "Other";
+            description.textContent = location.description || "No description available.";
+
+            content.append(name, category, description);
+
+            return content;
+        }
+
+
+        function updateCategoryOptions() {
+            const selectedValue = categoryFilter.value;
+            const categories = [
+                ...new Set(
+                    locations.map((location) => location.category || "Other")
+                )
+            ].sort();
+
+            categoryFilter.replaceChildren();
+
+            const allOption = document.createElement("option");
+            allOption.value = "";
+            allOption.textContent = "All categories";
+            categoryFilter.append(allOption);
+
+            categories.forEach((category) => {
+                const option = document.createElement("option");
+                option.value = category;
+                option.textContent = category;
+                categoryFilter.append(option);
+            });
+
+            if (categories.includes(selectedValue)) {
+                categoryFilter.value = selectedValue;
+            }
+        }
+
+
+        function selectLocation(location) {
+            const marker = markers.get(String(location.id));
+
+            if (!marker) {
+                return;
+            }
+
+            map.setView(marker.getLatLng(), 16, { animate: true });
+            marker.openPopup();
+
+            list.querySelectorAll(".location-card").forEach((card) => {
+                const active =
+                    String(card.dataset.locationId) === String(location.id);
+
+                card.classList.toggle("is-active", active);
+            });
+        }
+
+
+        function renderLocations() {
+            const query = searchInput.value.trim().toLocaleLowerCase();
+            const selectedCategory = categoryFilter.value;
+
+            const filtered = locations.filter((location) => {
+                const name = location.name || "";
+                const category = location.category || "Other";
+                const description = location.description || "";
+
+                const matchesSearch =
+                    `${name} ${category} ${description}`
+                        .toLocaleLowerCase()
+                        .includes(query);
+
+                const matchesCategory =
+                    !selectedCategory || category === selectedCategory;
+
+                return matchesSearch && matchesCategory;
+            });
+
+            list.replaceChildren();
+            markerLayer.clearLayers();
+            markers.clear();
+
+            countLabel.textContent =
+                `${filtered.length} of ${locations.length} places`;
+
+            if (filtered.length === 0) {
+                const empty = document.createElement("p");
+                empty.className = "empty-state";
+                empty.textContent = "No places match your search.";
+                list.append(empty);
+                return;
+            }
+
+            filtered.forEach((location) => {
+                const card = document.createElement("button");
+                const topLine = document.createElement("span");
+                const name = document.createElement("span");
+                const category = document.createElement("span");
+                const description = document.createElement("p");
+
+                card.type = "button";
+                card.className = "location-card";
+                card.dataset.locationId = String(location.id);
+
+                topLine.className = "card-topline";
+                name.className = "location-name";
+                category.className = "category";
+                description.className = "location-description";
+
+                name.textContent = location.name;
+                category.textContent = location.category || "Other";
+                description.textContent =
+                    location.description || "No description available.";
+
+                topLine.append(name, category);
+                card.append(topLine, description);
+
+                card.addEventListener("click", () => {
+                    selectLocation(location);
+                });
+
+                list.append(card);
+
+                const marker = L.marker([
+                    Number(location.lat),
+                    Number(location.lng)
+                ])
+                    .bindPopup(popupContent(location))
+                    .addTo(markerLayer);
+
+                marker.on("click", () => {
+                    list.querySelectorAll(".location-card").forEach((item) => {
+                        const active =
+                            String(item.dataset.locationId) === String(location.id);
+
+                        item.classList.toggle("is-active", active);
+                    });
+                });
+
+                markers.set(String(location.id), marker);
+            });
+        }
+
+
+        searchInput.addEventListener("input", renderLocations);
+
+        categoryFilter.addEventListener("change", renderLocations);
+
+
+        function getCookie(name) {
+            let cookieValue = null;
+
+            if (document.cookie && document.cookie !== "") {
+                const cookies = document.cookie.split(";");
+
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+
+                    if (cookie.startsWith(name + "=")) {
+                        cookieValue = decodeURIComponent(
+                            cookie.substring(name.length + 1)
+                        );
+                        break;
+                    }
+                }
+            }
+
+            return cookieValue;
+        }
+
+
+        locationForm.addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const lat = Number(
+                document.getElementById("location-lat").value
+            );
+
+            const lng = Number(
+                document.getElementById("location-lng").value
+            );
+
+            const name = document
+                .getElementById("location-name")
+                .value.trim();
+
+            const category = document
+                .getElementById("location-category")
+                .value.trim() || "My place";
+
+            const description = document
+                .getElementById("location-description")
+                .value.trim();
+
+            if (
+                !Number.isFinite(lat) ||
+                !Number.isFinite(lng) ||
+                lat < -90 ||
+                lat > 90 ||
+                lng < -180 ||
+                lng > 180
+            ) {
+                markerStatus.textContent = "Enter valid coordinates.";
+                return;
+            }
+
+            if (!name) {
+                markerStatus.textContent = "Enter a place name.";
+                return;
+            }
+
+            const data = {
+                lat: lat,
+                lng: lng,
+                name: name,
+                category: category,
+                description: description
+            };
+
+            try {
+                addLocationButton.disabled = true;
+                markerStatus.textContent = "Saving location...";
+
+                const response = await fetch(
+                    "{% url 'create_location' %}",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": getCookie("csrftoken")
+                        },
+                        body: JSON.stringify(data)
+                    }
+                );
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    markerStatus.textContent =
+                        result.error || "Could not add the location.";
+                    return;
+                }
+
+                const existingIndex = locations.findIndex(
+                    (item) => String(item.id) === String(result.id)
+                );
+
+                if (existingIndex === -1) {
+                    locations.push(result);
+                } else {
+                    locations[existingIndex] = result;
+                }
+
+                updateCategoryOptions();
+
+                searchInput.value = "";
+                categoryFilter.value = "";
+
+                renderLocations();
+
+                map.setView([result.lat, result.lng], 15);
+                selectLocation(result);
+
+                markerStatus.textContent = "Location added successfully!";
+
+                locationForm.reset();
+            } catch (error) {
+                console.error(error);
+
+                markerStatus.textContent =
+                    "Connection error. Please try again.";
+            } finally {
+                addLocationButton.disabled = false;
+            }
+        });
+
+
+        updateCategoryOptions();
+        renderLocations();
+    </script>
+</body>
+
+</html>
